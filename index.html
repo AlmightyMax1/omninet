@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OmniNet — Prototype v0.1</title>
+<style>
+:root{--bg:#06090f;--panel:#0b111c;--line:#16233a;--cyan:#35c4ff;--gold:#ffc94d;--red:#ff4d5e;--green:#3dffa2;--txt:#cfe3ff;--dim:#5a7395}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:ui-monospace,'Cascadia Mono',Consolas,monospace;font-size:13px;height:100vh;overflow:hidden}
+button{font-family:inherit;background:var(--panel);color:var(--txt);border:1px solid var(--line);padding:6px 10px;cursor:pointer;border-radius:3px}
+button:hover{border-color:var(--cyan);color:#fff}
+button:disabled{opacity:.35;cursor:default}
+b{color:var(--gold)}
+.hidden{display:none!important}
+#boot{height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:20px}
+#boot h1{font-size:44px;letter-spacing:12px;color:var(--cyan);text-shadow:0 0 24px rgba(53,196,255,.5)}
+#boot .tag{color:var(--dim);letter-spacing:2px;margin-top:-10px}
+#paths{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+.pathcard{width:280px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px;cursor:pointer;transition:transform .15s,border-color .15s}
+.pathcard:hover{transform:translateY(-4px);border-color:var(--cyan)}
+.pathcard h2{margin-bottom:8px}
+.pathcard .stat{display:flex;justify-content:space-between;padding:2px 0;color:var(--dim)}
+.pathcard .stat span:last-child{color:var(--txt)}
+.pathcard p{margin-top:10px;color:var(--dim);font-size:12px;line-height:1.5}
+#game{display:flex;flex-direction:column;height:100vh}
+#hud{display:flex;align-items:center;gap:18px;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+#badge{padding:3px 10px;border-radius:3px;font-weight:bold;letter-spacing:1px}
+#tracewrap{position:relative;width:220px;height:18px;background:#120a0e;border:1px solid #3a1620;border-radius:3px;overflow:hidden}
+#tracebar{height:100%;width:0%;background:linear-gradient(90deg,#7a1622,var(--red));transition:width .3s}
+#tracetxt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:#ffb3ba}
+main{flex:1;display:flex;min-height:0}
+#mapwrap{flex:1;position:relative;min-width:0}
+#map{width:100%;height:100%;display:block;cursor:crosshair}
+#deck{position:absolute;left:12px;bottom:12px;display:flex;gap:8px;flex-wrap:wrap;max-width:95%}
+.card{background:rgba(11,17,28,.92);border:1px solid var(--line);border-radius:5px;padding:8px 10px;text-align:center;min-width:86px;user-select:none}
+.card .ic{font-size:18px}
+.card .nm{font-size:10px;color:var(--dim);margin-top:2px}
+.card.armed{border-color:var(--gold);box-shadow:0 0 12px rgba(255,201,77,.35)}
+#side{width:390px;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column}
+#tabs{display:flex;border-bottom:1px solid var(--line)}
+#tabs button{flex:1;border:none;border-radius:0;background:none;padding:9px 4px;color:var(--dim);font-size:12px}
+#tabs button.on{color:var(--cyan);border-bottom:2px solid var(--cyan);background:none}
+#tabbody{flex:1;overflow-y:auto;padding:12px}
+.mission{border:1px solid var(--line);border-radius:5px;padding:10px;margin-bottom:10px}
+.mission h3{font-size:13px;color:var(--cyan)}
+.mission .meta{color:var(--dim);font-size:11px;margin:4px 0}
+.mission .steps{font-size:11px;color:var(--dim)}
+.flames{color:var(--red)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:6px 0}
+.slot{width:40px;height:40px;border:1px dashed var(--line);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:16px;background:#0a0f18}
+.slot.full{border-style:solid;border-color:#2a4568}
+#rack{display:grid;grid-template-columns:repeat(4,44px);gap:8px;margin:8px 0}
+.shopitem{border:1px solid var(--line);border-radius:5px;padding:8px;margin-bottom:8px;font-size:12px}
+.logline{font-size:11px;padding:2px 0;border-bottom:1px solid #0d1522;color:var(--dim)}
+.logline.warn{color:var(--red)}.logline.good{color:var(--green)}.logline.info{color:var(--cyan)}
+pre{background:#060a12;border:1px solid var(--line);padding:8px;font-size:11px;overflow-x:auto;border-radius:4px;margin:6px 0;color:#8fd8b0}
+#heistcam{position:fixed;inset:0;background:rgba(3,5,10,.96);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:50}
+#hchead{font-size:20px;letter-spacing:3px;color:var(--cyan);margin-bottom:6px;text-shadow:0 0 18px rgba(53,196,255,.5)}
+#hcc{border:1px solid var(--line);border-radius:6px;max-width:92vw;max-height:70vh}
+#hchint{color:var(--dim);margin-top:10px;font-size:12px;letter-spacing:1px}
+#modal{position:fixed;inset:0;background:rgba(3,5,10,.9);display:flex;align-items:center;justify-content:center;z-index:60}
+#modalbox{background:var(--panel);border:1px solid var(--cyan);border-radius:8px;padding:24px;max-width:520px;line-height:1.6}
+#modalbox h2{color:var(--cyan);margin-bottom:12px;letter-spacing:2px}
+#modalbox .btns{margin-top:16px;display:flex;gap:10px;justify-content:flex-end}
+::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+</style>
+</head>
+<body>
+
+<div id="boot">
+  <h1>OMNINET</h1>
+  <div class="tag">// THE CITY IS THE NETWORK. PICK YOUR HAT.</div>
+  <div id="paths"></div>
+  <button id="cont" class="hidden">▸ CONTINUE SAVED RUN</button>
+  <div class="tag" style="max-width:600px;text-align:center;line-height:1.6">Drag-free, casual-first hacking: arm an action card, click a target, survive the Heist Cam.
+  Recorded runs become ambient automation scripts. Everything leaves evidence — clean up or get caught.</div>
+</div>
+
+<div id="game" class="hidden">
+  <header id="hud">
+    <span id="badge">—</span>
+    <span>💰 <b id="money">0</b></span>
+    <span>★ CRED <b id="cred">0</b></span>
+    <span id="strikes"></span>
+    <div id="tracewrap"><div id="tracebar"></div><div id="tracetxt">TRACE 0%</div></div>
+    <span style="flex:1"></span>
+    <button id="howbtn">?</button>
+    <button id="sndbtn">🔊</button>
+    <button id="rstbtn">RESET</button>
+  </header>
+  <main>
+    <section id="mapwrap">
+      <canvas id="map"></canvas>
+      <div id="deck"></div>
+    </section>
+    <aside id="side">
+      <nav id="tabs"></nav>
+      <div id="tabbody"></div>
+    </aside>
+  </main>
+</div>
+
+<div id="heistcam" class="hidden">
+  <div id="hchead"></div>
+  <canvas id="hcc" width="820" height="560"></canvas>
+  <div id="hchint"></div>
+</div>
+
+<div id="modal" class="hidden"><div id="modalbox"></div></div>
+
+<script>
+'use strict';
+/* ================= OMNINET PROTOTYPE v0.1 — vertical slice =================
+   Implements: 3-path careers, city map, attack cards, Heist Cam signature
+   minigames (padlock / lure / vault / eraser), evidence & trace, path-tiered
+   consequences, black-market missions, hardware rack, script recorder with
+   omni.* API (naming mirrors Bitburner's ns.* conventions), juice (shake,
+   hit-stop, particles, gems), save/load.
+============================================================================ */
+
+const PATHS={
+  WHITE:{key:'WHITE',name:'WHITE HAT',color:'#3fd0ff',pay:0.45,risk:0.30,
+    mean:'$9.2k/wk',cv:'CV 0.24 (steady)',
+    blurb:'Legal bounty work. Smaller payouts, zero legal risk. Failure costs professional reputation only.'},
+  GREY:{key:'GREY',name:'GREY HAT',color:'#c9c9e8',pay:0.85,risk:0.62,
+    mean:'$25.8k/wk',cv:'CV 0.46 (mixed)',
+    blurb:'Unauthorized but well-intentioned. Decent pay. Failures bring civil settlements and legal heat.'},
+  BLACK:{key:'BLACK',name:'BLACK HAT',color:'#ff4d5e',pay:1.5,risk:1.0,
+    mean:'$56.5k/wk',cv:'CV 1.36 (jackpot or zero)',
+    blurb:'Full criminal economy. Triple payouts, brutal variance. Failures escalate: seizure, strikes, identity burn.'}
+};
+
+const NODE_DEFS=[
+  {id:'noodlenet', name:'NoodleNet', max:150000,  sec:8,  x:.16,y:.28},
+  {id:'mediacorp', name:'MediaCorp', max:500000,  sec:15, x:.44,y:.20},
+  {id:'gridsys',   name:'GridSys',   max:800000,  sec:22, x:.28,y:.62},
+  {id:'cryptech',  name:'CrypTech',  max:1200000, sec:32, x:.58,y:.52},
+  {id:'zenithbank',name:'ZenithBank',max:2000000, sec:42, x:.72,y:.24},
+  {id:'apexcorp',  name:'ApexCorp',  max:5000000, sec:55, x:.86,y:.64}
+];
+
+const FIXERS={
+  ghostwire:{name:'Ghostwire',  tier:'T0–T1', note:'expects newbies to fail'},
+  palerider:{name:'Pale_Rider', tier:'T2',    note:'two strikes, then frozen'},
+  curator:  {name:'The Curator',tier:'T3',    note:'one burned job ends it'}
+};
+
+const MTEMPLATES=[
+  {fixer:'ghostwire', tier:0,title:'Fresh Cards',       steps:['scan','phish'],                     pay:180,   flames:1},
+  {fixer:'ghostwire', tier:1,title:'The Intern',        steps:['scan','phish','brute'],             pay:950,   flames:1},
+  {fixer:'palerider', tier:2,title:'Open Window',       steps:['scan','brute','exfiltrate'],        pay:3800,  flames:2},
+  {fixer:'palerider', tier:2,title:'Silent Inventory',  steps:['scan','phish','sqli','exfiltrate'], pay:5200,  flames:2},
+  {fixer:'curator',   tier:3,title:'Glass House Lite',  steps:['scan','brute','sqli','exfiltrate'], pay:36000, flames:3},
+  {fixer:'curator',   tier:3,title:'The Curator\u2019s Rival',steps:['scan','brute','sqli','exfiltrate','clean'],pay:42000,flames:3}
+];
+
+const SHOP=[
+  {id:'ram',  name:'RAM Stick 16GB',   icon:'🧠', cost:2500, desc:'+1 script slot'},
+  {id:'cpu',  name:'CPU Cluster',      icon:'⚙',  cost:5000, desc:'Heist Cam speed +25%'},
+  {id:'cool', name:'Liquid Cooling',   icon:'❄',  cost:4000, desc:'Trace decay +50%'},
+  {id:'proxy',name:'Proxy Farm',       icon:'🛡',  cost:8000, desc:'Evidence gain −25%'}
+];
+
+const ACTIONS={
+  scan:  {ic:'📡',nm:'SCAN'},
+  brute: {ic:'🔓',nm:'BRUTE FORCE'},
+  phish: {ic:'🎣',nm:'PHISHING'},
+  sqli:  {ic:'💉',nm:'SQL INJECT'},
+  exfil: {ic:'⚡',nm:'EXFILTRATE'},
+  clean: {ic:'🧽',nm:'CLEAN LOGS'}
+};
+
+/* ---------------- state ---------------- */
+let S=null, P=null;                 // save state, active path def
+let heist=null;                     // active heist-cam session
+let armed=null;                     // armed action id
+let fx={parts:[],beams:[],rings:[],shake:0,gems:0,gemPop:0};
+let soundOn=true, AC=null, lastHB=0, lastTs=0;
+
+function freshState(pathKey){
+  return {
+    path:pathKey, money:1500, cred:10, trace:0, strikes:0,
+    decay:0.05, speed:1, evMul:1, rack:[],
+    nodes:NODE_DEFS.map(d=>({...d,money:d.max*0.7,base:d.sec,cur:d.sec,ev:0,root:false,scanned:false})),
+    missions:[null,null,null], activeMission:-1,
+    scripts:[], log:[], sid:1
+  };
+}
+
+/* ---------------- utils ---------------- */
+const $=id=>document.getElementById(id);
+const fmt=n=>'$'+Math.round(n).toLocaleString('en-US');
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+function log(msg,cls){S.log.unshift({t:new Date().toLocaleTimeString(),msg,cls:cls||''});if(S.log.length>120)S.log.length=120;renderTab();}
+
+function beep(f,d,type,g){
+  if(!soundOn)return;
+  try{
+    AC=AC||new (window.AudioContext||window.webkitAudioContext)();
+    const o=AC.createOscillator(),ga=AC.createGain();
+    o.type=type||'square';o.frequency.value=f;ga.gain.value=g||0.04;
+    o.connect(ga);ga.connect(AC.destination);o.start();
+    ga.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+(d||0.08));
+    o.stop(AC.currentTime+(d||0.08));
+  }catch(e){}
+}
+function burst(x,y,color,n){for(let i=0;i<(n||10);i++){const a=rnd(0,Math.PI*2),v=rnd(30,160);fx.parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-40,life:rnd(.4,.9),max:1,color});}}
+function addBeam(fromId,toId,color){fx.beams.push({from:fromId,to:toId,t:0,dur:3,color:color||'#00ffcc'});}
+function addRing(x,y){fx.rings.push({x,y,r:8,a:0.8});}
+
+/* ---------------- boot / path select ---------------- */
+function buildBoot(){
+  const wrap=$('paths');wrap.innerHTML='';
+  Object.values(PATHS).forEach(p=>{
+    const d=document.createElement('div');d.className='pathcard';d.style.borderColor=p.color+'55';
+    d.innerHTML=`<h2 style="color:${p.color}">${p.name}</h2>
+      <div class="stat"><span>Avg income</span><span>${p.mean}</span></div>
+      <div class="stat"><span>Variance</span><span>${p.cv}</span></div>
+      <div class="stat"><span>Legal risk</span><span>${p.risk>=1?'MAXIMUM':p.risk>0.4?'MEDIUM':'NONE'}</span></div>
+      <div class="stat"><span>Failure cost</span><span>${p.key==='WHITE'?'Reputation':p.key==='GREY'?'Rep + settlements':'Seizure → burn'}</span></div>
+      <p>${p.blurb}</p>`;
+    d.onclick=()=>startGame(p.key);
+    wrap.appendChild(d);
+  });
+  if(localStorage.getItem('omninet-save')){$('cont').classList.remove('hidden');$('cont').onclick=()=>{loadSave();};}
+}
+
+function startGame(pathKey){
+  S=freshState(pathKey);P=PATHS[pathKey];
+  S.missions=[genMission(0),genMission(1),genMission(2)];
+  $('boot').classList.add('hidden');$('game').classList.remove('hidden');
+  buildDeck();buildTabs();renderHUD();renderTab();
+  log('Connected to OmniNet city grid. Handle registered.','good');
+  log('Tip: arm SCAN, click a target node. Chain scan → brute → exfiltrate.','info');
+  showModal(`<h2>WELCOME, OPERATOR</h2>
+    <p><b>1.</b> Arm an action card (bottom-left), then click a target node on the city map.</p>
+    <p><b>2.</b> BRUTE / PHISH / SQLI / CLEAN open the <b>Heist Cam</b> — a signature minigame. Beat it to land the technique.</p>
+    <p><b>3.</b> Every action leaves <span style="color:var(--red)">evidence</span> (red squares on nodes). Evidence feeds the TRACE meter. Hit 100% and you're caught — consequences scale with your hat.</p>
+    <p><b>4.</b> Take black-market missions, buy rack hardware, and record successful chains as ambient automation scripts.</p>
+    <p style="color:var(--dim)">ESC cancels an armed card. Autosaves every 10s.</p>
+    <div class="btns"><button onclick="closeModal()">JACK IN</button></div>`);
+  save();
+}
+
+/* ---------------- missions ---------------- */
+function tierTargets(t){return t<=1?['noodlenet','mediacorp']:t===2?['gridsys','cryptech','mediacorp']:['cryptech','zenithbank','apexcorp'];}
+function genMission(slot){
+  const t=MTEMPLATES.filter(m=>['ghostwire','palerider','curator'][slot]===m.fixer);
+  const tpl=pick(t);
+  return {...tpl,target:pick(tierTargets(tpl.tier)),slot,prog:0,seed:Math.random()};
+}
+function missionStepHit(action,node){
+  if(S.activeMission<0)return;
+  const m=S.missions[S.activeMission];if(!m)return;
+  if(m.target!==node.id)return;
+  if(m.steps[m.prog]!==action)return;
+  m.prog++;
+  log(`Mission "${m.title}": step ${m.prog}/${m.steps.length} complete.`,'info');
+  if(m.prog>=m.steps.length){
+    const pay=Math.round(m.pay*P.pay);
+    S.money+=pay;S.cred+=m.tier+2;S.activeMission=-1;
+    S.missions[m.slot]=genMission(m.slot);
+    fx.gemPop=1;beep(1200,.15,'triangle',.06);beep(1600,.2,'triangle',.05);
+    log(`MISSION COMPLETE — ${m.title}. Payout ${fmt(pay)}. Cred +${m.tier+2}.`,'good');
+    showModal(`<h2 style="color:var(--green)">JOB DELIVERED</h2><p><b>${m.title}</b> — ${FIXERS[m.fixer].name} wires you <b>${fmt(pay)}</b>.</p><p style="color:var(--dim)">Street cred rising. Better listings unlock as cred grows.</p><div class="btns"><button onclick="closeModal()">COLLECT</button></div>`);
+  }
+  renderHUD();renderTab();save();
+}
+function failMission(reason){
+  if(S.activeMission<0)return;
+  const m=S.missions[S.activeMission];
+  S.cred=Math.max(0,S.cred-(m.tier+3));
+  log(`MISSION FAILED — ${m.title} (${reason}). Cred −${m.tier+3}.`,'warn');
+  S.missions[m.slot]=genMission(m.slot);S.activeMission=-1;
+  renderHUD();renderTab();
+}
+
+/* ---------------- deck / actions ---------------- */
+function buildDeck(){
+  const d=$('deck');d.innerHTML='';
+  Object.entries(ACTIONS).forEach(([id,a])=>{
+    const b=document.createElement('div');b.className='card';b.id='card-'+id;
+    b.innerHTML=`<div class="ic">${a.ic}</div><div class="nm">${a.nm}</div>`;
+    b.onclick=()=>{armed=(armed===id)?null:id;
+      document.querySelectorAll('.card').forEach(c=>c.classList.remove('armed'));
+      if(armed)b.classList.add('armed');
+      if(armed)log(`${a.nm} armed — click a target node. (ESC to cancel)`,'info');};
+    d.appendChild(b);
+  });
+}
+function nodeAt(mx,my){
+  const c=$('map'),r=c.getBoundingClientRect(),W=c.width,H=c.height;
+  const x=mx-r.left,y=my-r.top;
+  for(const n of S.nodes){const nx=n.x*W,ny=n.y*H;if(Math.hypot(x-nx,y-ny)<26)return n;}
+  return null;
+}
+function armCancel(){armed=null;document.querySelectorAll('.card').forEach(c=>c.classList.remove('armed'));}
+
+function tryAction(node){
+  if(!armed)return;
+  const a=armed;
+  if(a==='exfil'&&!node.root){log('EXFILTRATE needs root access. Brute force or phish first.','warn');return;}
+  if(a==='sqli'&&!node.root){log('SQL INJECT needs root access on the target.','warn');return;}
+  armCancel();
+  if(a==='scan')doScan(node);
+  else if(a==='exfil')doExfil(node);
+  else startHeist(a,node);
+}
+
+function evAdd(node,base){node.ev=Math.min(100,node.ev+base*P.risk*S.evMul);}
+function secAdd(node,d){node.cur=Math.min(100,Math.max(node.base,node.cur+d));}
+
+function doScan(node){
+  addRing(node.x*$('map').width,node.y*$('map').height);
+  node.scanned=true;evAdd(node,3);
+  beep(700,.06,'sine',.03);beep(900,.08,'sine',.03);
+  log(`SCAN → ${node.name}: $${Math.round(node.money).toLocaleString()} available, security ${Math.round(node.cur)}, ${node.root?'ROOTED':'no root'}.`,'info');
+  missionStepHit('scan',node);save();
+}
+
+function doExfil(node){
+  const steal=node.money*0.25;node.money-=steal;
+  const pay=steal*P.pay;S.money+=Math.round(pay);
+  evAdd(node,15);secAdd(node,6);
+  addBeam(node.id,'home','#00ffcc');fx.gemPop=1;fx.shake=5;
+  for(let i=0;i<6;i++)burst(node.x*$('map').width,node.y*$('map').height,'#ffc94d',3);
+  beep(500,.1,'sawtooth',.04);beep(800,.12,'sawtooth',.03);
+  log(`EXFILTRATE → ${node.name}: siphoned ${fmt(steal)} · net ${fmt(pay)} after path cut.`,'good');
+  missionStepHit('exfiltrate',node);renderHUD();save();
+}
+
+/* ---------------- heist cam ---------------- */
+function startHeist(type,node){
+  const h={type,node,start:performance.now(),phase:'play',shake:0,hitstop:0,t:0};
+  if(type==='brute'){
+    h.tumblers=[];for(let i=0;i<3;i++)h.tumblers.push({tgt:1+Math.floor(Math.random()*9),locked:false});
+    h.idx=0;h.digit=0;h.timeLeft=22;h.crackT=0;
+    $('hchint').textContent='Click / SPACE when the spinning digit matches the dim target above each tumbler.';
+  }else if(type==='phish'){
+    h.envs=[];h.spawnT=0;h.timeLeft=10;h.reelT=0;
+    $('hchint').textContent='One envelope wobbles — the tell. Click it. Wrong envelope = blown.';
+  }else if(type==='sqli'){
+    const labels=['OR 1=1','SELECT *','DROP TABLE','-- ;',"admin'--",'UNION ALL'];
+    h.frags=labels.map(l=>({l,x:rnd(120,660),y:rnd(150,420),vx:rnd(-40,40),vy:rnd(-30,30)}));
+    h.timeLeft=12;h.dissolveT=0;
+    $('hchint').textContent='Inject the classic: click the OR 1=1 fragment. Anything else trips the WAF.';
+  }else if(type==='clean'){
+    h.progress=0;h.holding=false;
+    $('hchint').textContent='Hold mouse / touch down to burn the log lines. Release early = partial wipe.';
+  }
+  heist=h;
+  $('hchead').textContent=`${ACTIONS[type].nm} — ${node.name}`;
+  $('heistcam').classList.remove('hidden');
+  beep(300,.1,'sine',.03);
+}
+
+function hcInput(){
+  if(!heist||heist.phase!=='play')return;
+  const h=heist;
+  if(h.type==='brute'){
+    const t=h.tumblers[h.idx];
+    if(h.digit===t.tgt){t.locked=true;h.idx++;beep(880,.07,'square',.05);h.shake=3;
+      if(h.idx>=3){h.phase='crack';h.hitstop=0.09;beep(140,.25,'sawtooth',.07);beep(1000,.3,'square',.05);}
+    }else{h.shake=8;evAdd(h.node,2);beep(110,.15,'sawtooth',.05);log('Brute force: tumbler miss — noise on the wire.','warn');}
+  }
+}
+
+function hcPointer(e,down){
+  if(!heist)return;
+  const h=heist,c=$('hcc'),r=c.getBoundingClientRect();
+  const x=(e.clientX-r.left)*(c.width/r.width),y=(e.clientY-r.top)*(c.height/r.height);
+  if(h.type==='clean'){h.holding=!!down;return;}
+  if(!down||h.phase!=='play')return;
+  if(h.type==='phish'){
+    let hit=null;
+    for(const en of h.envs){if(Math.abs(x-en.x)<45&&Math.abs(y-en.y)<30)hit=en;}
+    if(hit&&hit.wob){h.phase='reel';h.reelT=0;h.envs=[hit];hit.hooked=true;beep(600,.1,'square',.05);}
+    else{h.phase='fail';h.failT=0;evAdd(h.node,6);beep(100,.2,'sawtooth',.06);}
+  }else if(h.type==='sqli'){
+    let hit=null;
+    for(const f of h.frags){if(Math.abs(x-f.x)<70&&Math.abs(y-f.y)<18)hit=f;}
+    if(hit&&hit.l==='OR 1=1'){h.phase='dissolve';h.dissolveT=0;beep(400,.15,'triangle',.06);}
+    else if(hit){h.phase='fail';h.failT=0;evAdd(h.node,8);beep(100,.25,'sawtooth',.06);}
+  }else if(h.type==='brute'){hcInput();}
+}
+
+function finishHeist(ok){
+  const h=heist,n=h.node;heist=null;
+  $('heistcam').classList.add('hidden');
+  if(h.type==='brute'){
+    if(ok){n.root=true;evAdd(n,12);secAdd(n,5);
+      log(`BRUTE FORCE → ${n.name}: shackle popped. ROOT ACCESS gained.`,'good');
+      fx.shake=8;burst(n.x*$('map').width,n.y*$('map').height,'#ffc94d',14);
+      missionStepHit('brute',n);
+    }else{evAdd(n,20);secAdd(n,3);log(`BRUTE FORCE → ${n.name}: lockout. Heavy noise on the wire.`,'warn');}
+  }else if(h.type==='phish'){
+    if(ok){if(n.cur<=25){n.root=true;log(`PHISHING → ${n.name}: lure swallowed. ROOT ACCESS gained.`,'good');}
+      else{n.cur=Math.max(n.base,n.cur-10);log(`PHISHING → ${n.name}: credentials harvested. Security −10.`,'good');}
+      evAdd(n,8);missionStepHit('phish',n);
+    }else log(`PHISHING → ${n.name}: target drifted past. No bite.`,'warn');
+  }else if(h.type==='sqli'){
+    if(ok){const steal=n.money*0.15;n.money-=steal;S.money+=Math.round(steal*P.pay);
+      evAdd(n,10);fx.gemPop=1;fx.shake=6;
+      log(`SQL INJECTION → ${n.name}: gate dissolved. ${fmt(steal)} siphoned.`,'good');
+      missionStepHit('sqli',n);renderHUD();
+    }else log(`SQL INJECTION → ${n.name}: WAF tripped. Query shattered.`,'warn');
+  }else if(h.type==='clean'){
+    n.ev=Math.max(0,n.ev*(1-h.progress));
+    log(`LOG TAMPERING → ${n.name}: ${Math.round(h.progress*100)}% wiped. Evidence now ${Math.round(n.ev)}.`,h.progress>0.99?'good':'info');
+    missionStepHit('clean',n);
+  }
+  save();
+}
+
+/* ---------------- heist cam update/draw ---------------- */
+function stepHeist(dt){
+  if(!heist)return;
+  const h=heist;
+  if(h.hitstop>0){h.hitstop-=dt;return;}
+  h.t+=dt;h.shake=Math.max(0,h.shake-dt*20);
+  if(h.phase==='play'){
+    if(h.type==='brute'){
+      h.timeLeft-=dt;h.digit=Math.floor(h.t*8*S.speed)%10;
+      if(h.timeLeft<=0){h.phase='fail';h.failT=0;}
+    }else if(h.type==='phish'){
+      h.timeLeft-=dt;h.spawnT-=dt;
+      if(h.spawnT<=0&&h.envs.length<6){h.spawnT=0.8;
+        h.envs.push({x:-70,y:rnd(140,420),wob:Math.random()<0.28,vy:rnd(-6,6)});}
+      h.envs.forEach(e=>{e.x+=110*dt;e.y+=Math.sin(h.t*3+e.x*0.02)*(e.wob?14:2)*dt+ (e.vy||0)*dt;});
+      h.envs=h.envs.filter(e=>e.x<900);
+      if(h.timeLeft<=0){h.phase='fail';h.failT=0;}
+    }else if(h.type==='sqli'){
+      h.timeLeft-=dt;
+      h.frags.forEach(f=>{f.x+=f.vx*dt;f.y+=f.vy*dt;
+        if(f.x<80||f.x>740)f.vx*=-1;if(f.y<120||f.y>440)f.vy*=-1;});
+      if(h.timeLeft<=0){h.phase='fail';h.failT=0;}
+    }else if(h.type==='clean'){
+      if(h.holding)h.progress=Math.min(1,h.progress+dt/1.6);
+      if(h.progress>=1)h.phase='done';
+    }
+  }else if(h.phase==='crack'){h.crackT+=dt;if(h.crackT>0.7){finishHeist(true);return;}}
+  else if(h.phase==='reel'){h.reelT+=dt;if(h.reelT>0.8){finishHeist(true);return;}}
+  else if(h.phase==='dissolve'){h.dissolveT+=dt;if(h.dissolveT>0.9){finishHeist(true);return;}}
+  else if(h.phase==='done'){finishHeist(true);return;}
+  else if(h.phase==='fail'){h.failT+=dt;if(h.failT>0.8){finishHeist(false);return;}}
+  drawHeist();
+}
+
+function drawHeist(){
+  const c=$('hcc'),g=c.getContext('2d');const h=heist;
+  g.fillStyle='#05070d';g.fillRect(0,0,c.width,c.height);
+  // grid backdrop
+  g.strokeStyle='rgba(53,196,255,0.05)';g.lineWidth=1;
+  for(let x=0;x<c.width;x+=40){g.beginPath();g.moveTo(x,0);g.lineTo(x,c.height);g.stroke();}
+  for(let y=0;y<c.height;y+=40){g.beginPath();g.moveTo(0,y);g.lineTo(c.width,y);g.stroke();}
+  const sx=h.shake>0?rnd(-h.shake,h.shake):0, sy=h.shake>0?rnd(-h.shake,h.shake):0;
+  g.save();g.translate(sx,sy);
+
+  if(h.type==='brute'){
+    // target digits (dim, above)
+    g.fillStyle='#5a7395';g.font='16px monospace';g.textAlign='center';
+    h.tumblers.forEach((t,i)=>g.fillText(String(t.tgt),410+(i-1)*120,120));
+    // padlock body
+    const bx=290,by=170,bw=240,bh=190;
+    g.strokeStyle='#35c4ff';g.lineWidth=4;
+    g.beginPath();g.arc(410,175,80,Math.PI,0);g.stroke(); // shackle
+    if(h.phase==='crack'){const off=h.crackT*30;g.beginPath();g.arc(430+off,175,80,Math.PI*1.1,0);g.stroke();}
+    g.fillStyle=h.phase==='crack'?'#ffc94d':'#0b1626';
+    g.fillRect(bx,by,bw,bh);g.strokeRect(bx,by,bw,bh);
+    // tumblers
+    h.tumblers.forEach((t,i)=>{
+      const wx=bx+30+i*70,wy=by+40;
+      const active=(i===h.idx&&h.phase==='play');
+      g.fillStyle=t.locked?'#0d2b1c':active?'#122033':'#0a0f18';
+      g.fillRect(wx,wy,54,84);
+      g.strokeStyle=t.locked?'#3dffa2':active?'#ffc94d':'#16233a';g.lineWidth=2;
+      g.strokeRect(wx,wy,54,84);
+      g.font='40px monospace';g.textAlign='center';
+      g.fillStyle=t.locked?'#3dffa2':active?'#fff':'#5a7395';
+      g.fillText(t.locked?String(t.tgt):String(h.digit),wx+27,wy+58);
+    });
+    // timer
+    g.fillStyle=h.timeLeft<6?'#ff4d5e':'#5a7395';g.font='14px monospace';
+    g.fillText(h.phase==='play'?('LOCKOUT IN '+h.timeLeft.toFixed(1)+'s'):(h.phase==='crack'?'CRACKED':'FAILED'),410,410);
+  }
+
+  else if(h.type==='phish'){
+    // stream guide
+    g.strokeStyle='rgba(53,196,255,.2)';g.setLineDash([6,6]);
+    g.beginPath();g.moveTo(0,280);g.lineTo(820,280);g.stroke();g.setLineDash([]);
+    h.envs.forEach(e=>{
+      const wob=Math.sin(h.t*6)* (e.wob?6:0.8);
+      g.save();g.translate(e.x,e.y+wob);g.rotate(e.wob?Math.sin(h.t*6)*0.08:0);
+      g.fillStyle=e.hooked?'#ffc94d':'#0e1a2c';g.strokeStyle='#35c4ff';g.lineWidth=2;
+      g.fillRect(-38,-22,76,44);g.strokeRect(-38,-22,76,44);
+      g.beginPath();g.moveTo(-38,-22);g.lineTo(0,4);g.lineTo(38,-22);g.stroke(); // flap
+      if(e.hooked){g.strokeStyle='#ffc94d';g.beginPath();g.moveTo(e.x>400?820:0,0);
+        g.restore();g.save();g.translate(0,0);
+        g.beginPath();g.moveTo(410,0);g.lineTo(e.x,e.y+wob);g.stroke();g.restore();g.save();}
+      g.restore();
+    });
+    if(h.phase==='reel'&&h.envs[0]){h.envs[0].y-=300*0.016;}
+    g.fillStyle='#5a7395';g.font='14px monospace';g.textAlign='center';
+    g.fillText(h.phase==='play'?('STREAM ENDS IN '+h.timeLeft.toFixed(1)+'s'):(h.phase==='reel'?'HOOKED':'DRIFTED'),410,500);
+  }
+
+  else if(h.type==='sqli'){
+    // vault gate
+    const alpha=h.phase==='dissolve'?Math.max(0,1-h.dissolveT/0.9):1;
+    g.globalAlpha=alpha;
+    g.strokeStyle='#35c4ff';g.lineWidth=5;g.fillStyle='#0b1626';
+    g.fillRect(310,140,200,260);g.strokeRect(310,140,200,260);
+    for(let i=0;i<5;i++){g.beginPath();g.moveTo(330,175+i*48);g.lineTo(490,175+i*48);g.stroke();}
+    g.globalAlpha=1;
+    // fragments
+    g.font='16px monospace';g.textAlign='center';
+    h.frags.forEach(f=>{
+      const hit=(f.l==='OR 1=1');
+      g.fillStyle=hit?'#ffc94d':'#5a7395';
+      g.fillText(f.l,f.x,f.y);
+    });
+    if(h.phase==='dissolve'){ // shards
+      for(let i=0;i<12;i++){g.fillStyle='rgba(53,196,255,'+(alpha*0.8)+')';
+        g.fillRect(310+((i*37)%200),140+((i*53)%260),8,8);}
+    }
+    g.fillStyle='#5a7395';g.font='14px monospace';
+    g.fillText(h.phase==='play'?('QUERY WINDOW '+h.timeLeft.toFixed(1)+'s'):(h.phase==='dissolve'?'GATE DISSOLVING':'WAF TRIPPED'),410,500);
+  }
+
+  else if(h.type==='clean'){
+    const lines=['auth.log: failed login x224 from 10.0.?.?','waf: suspicious query pattern logged','netflow: 1.2GB spike 03:14–03:19','ids: brute signature MATCH','session: unknown token persisted'];
+    g.font='15px monospace';g.textAlign='left';
+    const shown=Math.ceil(h.progress*lines.length);
+    lines.forEach((l,i)=>{
+      const erased=i<shown;
+      g.fillStyle=erased?'rgba(255,77,94,0.15)':'#9fc1e8';
+      g.fillText(erased?'████████████████████████████████':l,120,170+i*46);
+      if(erased&&!h['burn'+i]){h['burn'+i]=1;}
+    });
+    g.fillStyle='#5a7395';g.textAlign='center';
+    g.fillText('HOLD TO WIPE — '+Math.round(h.progress*100)+'%',410,470);
+    g.strokeStyle='#16233a';g.strokeRect(280,480,260,14);
+    g.fillStyle='#3dffa2';g.fillRect(281,481,258*h.progress,12);
+  }
+  g.restore();
+}
+
+/* ---------------- trace / consequences ---------------- */
+function stepTrace(dt){
+  const totalEv=S.nodes.reduce((a,n)=>a+n.ev,0);
+  const gain=totalEv*0.004*P.risk;
+  const decay=(S.trace>0?S.decay:0);
+  S.trace=Math.max(0,Math.min(100,S.trace+(gain-decay)*dt));
+  // heartbeat
+  if(S.trace>60&&performance.now()-lastHB>Math.max(320,1000-S.trace*7)){
+    lastHB=performance.now();beep(60,.09,'sine',.05);
+  }
+  if(S.trace>=100)caught();
+}
+
+function caught(){
+  S.trace=0;S.nodes.forEach(n=>n.ev*=0.4);
+  fx.shake=14;beep(80,.5,'sawtooth',.08);
+  const m=S.activeMission>=0;
+  if(P.key==='WHITE'){
+    S.cred=Math.max(0,S.cred-10);
+    showModal(`<h2 style="color:var(--cyan)">REPORT REJECTED</h2><p>The program flagged your sloppy disclosure. <b>Professional reputation −10.</b> That's all they can take from you — no heat, no cops.</p>${m?'<p style="color:var(--red)">Your active bounty was pulled.</p>':''}<div class="btns"><button onclick="closeModal()">FILE BETTER NEXT TIME</button></div>`);
+  }else if(P.key==='GREY'){
+    const set=Math.min(S.money,8000);S.money-=set;
+    showModal(`<h2 style="color:var(--gold)">CIVIL SETTLEMENT</h2><p>Their lawyers traced your unauthorized access. You settle quietly: <b>−${fmt(set)}</b>. No criminal charge — this time.</p>${m?'<p style="color:var(--red)">The client walked.</p>':''}<div class="btns"><button onclick="closeModal()">PAY IT</button></div>`);
+  }else{
+    const loss=Math.round(S.money*0.3);S.money-=loss;
+    let seized='';
+    if(S.rack.length){const rm=S.rack.pop();seized=`<p>Agents seized your <b>${SHOP.find(s=>s.id===rm.type).name}</b> — the rack slot sits empty with a dust outline.</p>`;}
+    S.strikes++;
+    let burn='';
+    if(S.strikes>=3){
+      S.strikes=0;S.cred=0;
+      burn=`<h2 style="color:var(--red)">IDENTITY BURNED</h2><p>Three strikes. Your handle is doxxed on every board — <b>reputation reset to zero</b>. You keep your gear and skills. The knowledge is the one asset they can't seize. Rebuild under a new name.</p>`;
+    }
+    showModal(`<h2 style="color:var(--red)">RAID — ATTRIBUTED</h2><p>Forensics connected the trail. <b>${fmt(loss)} frozen</b> pending trial.${seized}</p><p style="color:var(--red)">Strikes: ${S.strikes}/3</p>${burn}${m?'<p style="color:var(--red)">The fixer's job burned with you.</p>':''}<div class="btns"><button onclick="closeModal()">GO DARK</button></div>`);
+  }
+  if(m)failMission('caught mid-job');
+  log('CAUGHT — trace hit 100%. Consequences applied per path.','warn');
+  renderHUD();renderTab();save();
+}
+
+/* ---------------- scripts (recorder) ---------------- */
+function recordableNodes(){return S.nodes.filter(n=>n.scanned&&n.root);}
+function recordScript(node){
+  const code=`// recorded from your manual run on ${node.id}
+export async function main(omni) {
+  while (true) {
+    await omni.scan('${node.id}');
+    await omni.bruteforce('${node.id}');
+    await omni.exfiltrate('${node.id}');
+    await omni.cleanlogs('${node.id}');
+  }
+}`;
+  S.scripts.push({id:S.sid++,name:'farm-'+node.id+'.js',node:node.id,running:false,cyc:0,code});
+  log(`Script recorded: farm-${node.id}.js — your manual chain, automated.`,'good');
+  renderTab();save();
+}
+function scriptSlots(){return 2+S.rack.filter(r=>r.type==='ram').length;}
+function toggleScript(id){
+  const sc=S.scripts.find(s=>s.id===id);if(!sc)return;
+  const running=S.scripts.filter(s=>s.running).length;
+  if(!sc.running&&running>=scriptSlots()){log(`No free RAM slots (${running}/${scriptSlots()}). Buy RAM sticks.`,'warn');return;}
+  sc.running=!sc.running;sc.cyc=0;
+  log(sc.running?`farm-${sc.node}.js deployed — ambient beam live.`:`farm-${sc.node}.js halted.`,sc.running?'good':'info');
+  renderTab();save();
+}
+function stepScripts(dt){
+  S.scripts.forEach(sc=>{
+    if(!sc.running)return;
+    sc.cyc+=dt;
+    if(sc.cyc>=10){
+      sc.cyc=0;
+      const n=S.nodes.find(x=>x.id===sc.node);
+      if(!n||!n.root){sc.running=false;log(`farm-${sc.node}.js: lost root — halted.`,'warn');return;}
+      const steal=n.money*0.05;n.money-=steal;
+      S.money+=Math.round(steal*P.pay);
+      n.ev=Math.min(100,n.ev+1.2*P.risk*S.evMul);
+      addBeam(n.id,'home','#1a8f7a');
+      if(n.ev>60){sc.running=false;log(`farm-${sc.node}.js: target hardened (evidence too hot) — halted.`,'warn');}
+      renderHUD();
+    }
+  });
+}
+
+/* ---------------- shop / rack ---------------- */
+function buyModule(id){
+  const it=SHOP.find(s=>s.id===id);
+  if(S.rack.length>=8){log('Rack full (8U).','warn');return;}
+  if(S.money<it.cost){log('Not enough money.','warn');return;}
+  S.money-=it.cost;S.rack.push({id:S.sid++,type:it.id});
+  if(it.id==='cpu')S.speed+=0.25;
+  if(it.id==='cool')S.decay*=1.5;
+  if(it.id==='proxy')S.evMul*=0.75;
+  beep(1000,.1,'triangle',.05);
+  log(`Installed ${it.name}: ${it.desc}.`,'good');
+  renderHUD();renderTab();save();
+}
+
+/* ---------------- UI: tabs ---------------- */
+let curTab='missions';
+function buildTabs(){
+  const t=$('tabs');t.innerHTML='';
+  [['missions','MARKET'],['rack','RACK'],['scripts','SCRIPTS'],['log','LOG']].forEach(([id,nm])=>{
+    const b=document.createElement('button');b.textContent=nm;b.id='tab-'+id;
+    b.onclick=()=>{curTab=id;renderTab();};t.appendChild(b);
+  });
+}
+function renderTab(){
+  if(!S)return;
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.id==='tab-'+curTab));
+  const b=$('tabbody');
+  if(curTab==='missions'){
+    let h='<div style="color:var(--dim);font-size:11px;margin-bottom:10px">// BLACK MARKET BOARD — listings rotate on delivery. Payouts scale with your hat.</div>';
+    S.missions.forEach((m,i)=>{
+      if(!m){h+='';return;}
+      const f=FIXERS[m.fixer];const tgt=S.nodes.find(n=>n.id===m.target);
+      const active=S.activeMission===i;
+      h+=`<div class="mission" style="${active?'border-color:var(--gold)':''}">
+        <h3>${m.title} <span class="flames">${'🔥'.repeat(m.flames)}</span></h3>
+        <div class="meta">${f.name} · ${f.tier} · target: <b>${tgt?tgt.name:m.target}</b> · ${m.flames===1?'fail = rep only':m.flames===2?'fail = heat':'fail = heavy'}</div>
+        <div class="steps">chain: ${m.steps.join(' → ')}${active?` <span style="color:var(--gold)">[${m.prog}/${m.steps.length}]</span>`:''}</div>
+        <div class="row"><span>Payout <b>${fmt(m.pay*P.pay)}</b></span>
+        ${active?`<button onclick="abandon()">ABANDON</button>`:`<button onclick="acceptMission(${i})">ACCEPT</button>`}</div>
+      </div>`;
+    });
+    h+=`<div class="mission" style="border-style:dashed"><div class="meta">Better listings unlock as cred rises. Current cred: <b>${S.cred}</b></div></div>`;
+    b.innerHTML=h;
+  }
+  else if(curTab==='rack'){
+    let h=`<div style="color:var(--dim);font-size:11px;margin-bottom:6px">// SERVER BAY — 8U rack. Slots: ${S.rack.length}/8 · Script RAM: ${S.scripts.filter(s=>s.running).length}/${scriptSlots()}</div><div id="rack">`;
+    for(let i=0;i<8;i++){
+      const m=S.rack[i];
+      h+=m?`<div class="slot full" title="${m.type}">${SHOP.find(s=>s.id===m.type).icon}</div>`:'<div class="slot">·</div>';
+    }
+    h+='</div><div style="color:var(--dim);font-size:11px;margin:10px 0">// BLACK MARKET PARTS</div>';
+    SHOP.forEach(s=>{
+      h+=`<div class="shopitem"><div class="row"><span>${s.icon} <b style="color:var(--cyan)">${s.name}</b> — ${s.desc}</span><button ${S.money<s.cost?'disabled':''} onclick="buyModule('${s.id}')">${fmt(s.cost)}</button></div></div>`;
+    });
+    b.innerHTML=h;
+  }
+  else if(curTab==='scripts'){
+    let h='<div style="color:var(--dim);font-size:11px;margin-bottom:8px">// RECORDER — chain SCAN+ROOT on a node manually to unlock recording. Ambient scripts steal, leave evidence, and halt if the target hardens.</div>';
+    const rec=recordableNodes().filter(n=>!S.scripts.some(s=>s.node===n.id));
+    if(rec.length){h+='<div style="margin-bottom:10px">Recordable targets: '+rec.map(n=>`<button onclick="recordScript(S.nodes.find(x=>x.id==='${n.id}'))">⏺ ${n.name}</button>`).join(' ')+'</div>';}
+    if(!S.scripts.length)h+='<div class="logline">No scripts recorded yet.</div>';
+    S.scripts.forEach(sc=>{
+      h+=`<div class="mission"><div class="row"><span><b style="color:var(--green)">${sc.running?'▶ RUNNING':'⏸ HALTED'}</b> ${sc.name}</span>
+      <button onclick="toggleScript(${sc.id})">${sc.running?'STOP':'RUN'}</button></div>
+      <pre>${sc.code.replace(/</g,'&lt;')}</pre></div>`;
+    });
+    b.innerHTML=h;
+  }
+  else if(curTab==='log'){
+    b.innerHTML=S.log.map(l=>`<div class="logline ${l.cls}">[${l.t}] ${l.msg}</div>`).join('')||'<div class="logline">—</div>';
+  }
+}
+function acceptMission(i){
+  if(S.activeMission>=0){log('One job at a time. Finish or abandon the active mission.','warn');return;}
+  S.activeMission=i;const m=S.missions[i];
+  log(`Accepted "${m.title}" from ${FIXERS[m.fixer].name}. Work the chain on ${S.nodes.find(n=>n.id===m.target).name}.`,'info');
+  renderTab();save();
+}
+function abandon(){failMission('abandoned');}
+
+/* ---------------- HUD & modal ---------------- */
+function renderHUD(){
+  if(!S)return;
+  $('badge').textContent=P.name;$('badge').style.cssText=`background:${P.color}22;color:${P.color};border:1px solid ${P.color}66`;
+  $('money').textContent=fmt(S.money);
+  $('cred').textContent=S.cred;
+  $('strikes').textContent=P.key==='BLACK'?'⚠ '.repeat(S.strikes):'';
+  $('tracebar').style.width=S.trace+'%';
+  $('tracetxt').textContent='TRACE '+Math.round(S.trace)+'%';
+}
+function showModal(html){$('modalbox').innerHTML=html;$('modal').classList.remove('hidden');}
+function closeModal(){$('modal').classList.add('hidden');}
+
+/* ---------------- map render ---------------- */
+function drawMap(dt){
+  const c=$('map');const g=c.getContext('2d');
+  const W=c.width,H=c.height;
+  g.fillStyle='#06090f';g.fillRect(0,0,W,H);
+  // grid
+  g.strokeStyle='rgba(53,196,255,0.04)';g.lineWidth=1;
+  for(let x=0;x<W;x+=48){g.beginPath();g.moveTo(x,0);g.lineTo(x,H);g.stroke();}
+  for(let y=0;y<H;y+=48){g.beginPath();g.moveTo(0,y);g.lineTo(W,y);g.stroke();}
+  const shx=fx.shake>0?rnd(-fx.shake,fx.shake):0;
+  g.save();g.translate(shx,fx.shake>0?rnd(-fx.shake,fx.shake):0);
+
+  const home={x:W*0.06,y:H*0.5};
+  // links
+  S.nodes.forEach(n=>{
+    g.strokeStyle='rgba(53,196,255,0.14)';g.lineWidth=1;
+    g.beginPath();g.moveTo(home.x,home.y);g.lineTo(n.x*W,n.y*H);g.stroke();
+  });
+  // beams (ambient + exfil)
+  fx.beams=fx.beams.filter(b=>b.t<b.dur);
+  fx.beams.forEach(b=>{
+    b.t+=dt;const from=b.from==='home'?home:S.nodes.find(n=>n.id===b.from);
+    const to=b.to==='home'?home:S.nodes.find(n=>n.id===b.to);
+    if(!from||!to)return;
+    const p=b.t/b.dur;
+    g.strokeStyle=b.color;g.lineWidth=2;g.setLineDash([10,8]);g.lineDashOffset=-performance.now()/30;
+    g.globalAlpha=Math.min(1,2-p)*0.8;
+    g.beginPath();g.moveTo(from.x*W||from.x,from.y*H||from.y);
+    const tx=(b.to==='home')?home.x:to.x*W, ty=(b.to==='home')?home.y:to.y*H;
+    const fxp=(b.from==='home')?home.x:from.x*W, fyp=(b.from==='home')?home.y:from.y*H;
+    g.moveTo(fxp,fyp);g.lineTo(tx,ty);g.stroke();g.setLineDash([]);g.globalAlpha=1;
+  });
+  // sonar rings
+  fx.rings=fx.rings.filter(r=>r.a>0.02);
+  fx.rings.forEach(r=>{r.r+=140*dt;r.a*=Math.pow(0.2,dt);
+    g.strokeStyle=`rgba(53,196,255,${r.a})`;g.lineWidth=2;
+    g.beginPath();g.arc(r.x,r.y,r.r,0,Math.PI*2);g.stroke();});
+  // home node
+  g.fillStyle='#00ffcc';g.shadowColor='#00ffcc';g.shadowBlur=18;
+  g.beginPath();g.arc(home.x,home.y,14,0,Math.PI*2);g.fill();g.shadowBlur=0;
+  g.fillStyle='#cfe3ff';g.font='11px monospace';g.textAlign='center';
+  g.fillText('HOME',home.x,home.y+30);
+  // target nodes
+  S.nodes.forEach(n=>{
+    const x=n.x*W,y=n.y*H;
+    const ratio=n.cur/(n.base*1.6);
+    const col=ratio<0.5?'#35c4ff':ratio<0.85?'#ffc94d':'#ff4d5e';
+    g.shadowColor=col;g.shadowBlur=16;
+    g.fillStyle='#0b1626';g.strokeStyle=col;g.lineWidth=2;
+    g.beginPath();g.arc(x,y,16,0,Math.PI*2);g.fill();g.stroke();g.shadowBlur=0;
+    if(n.root){g.strokeStyle='#3dffa2';g.lineWidth=1.5;g.beginPath();g.arc(x,y,23,0,Math.PI*2);g.stroke();}
+    // evidence squares
+    const evDots=Math.ceil(n.ev/12);
+    for(let i=0;i<evDots;i++){g.fillStyle='#ff4d5e';g.fillRect(x-14+i*8,y+22,6,6);}
+    g.fillStyle=n.scanned?'#cfe3ff':'#5a7395';g.font='11px monospace';g.textAlign='center';
+    g.fillText(n.name,x,y-26);
+    if(n.scanned){g.fillStyle='#5a7395';g.font='10px monospace';
+      g.fillText('$'+Math.round(n.money/1000)+'k · sec '+Math.round(n.cur),x,y+44);}
+  });
+  // particles
+  fx.parts=fx.parts.filter(p=>p.life>0);
+  fx.parts.forEach(p=>{p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=200*dt;
+    g.globalAlpha=Math.max(0,p.life);g.fillStyle=p.color;g.fillRect(p.x,p.y,3,3);g.globalAlpha=1;});
+  // gem pop on money
+  if(fx.gemPop>0){fx.gemPop-=dt*2;g.fillStyle=`rgba(255,201,77,${fx.gemPop*0.25})`;g.fillRect(0,0,W,H);}
+  fx.shake=Math.max(0,fx.shake-dt*30);
+  g.restore();
+  // armed hint
+  if(armed){g.fillStyle='rgba(255,201,77,0.9)';g.font='12px monospace';g.textAlign='left';
+    g.fillText('▶ ARMED: '+ACTIONS[armed].nm+' — click a target node (ESC cancels)',14,22);}
+}
+
+/* ---------------- main loop ---------------- */
+function loop(ts){
+  requestAnimationFrame(loop);
+  const dt=Math.min(0.1,(ts-lastTs)/1000||0.016);lastTs=ts;
+  if(!S)return;
+  // world sim
+  S.nodes.forEach(n=>{
+    n.money=Math.min(n.max,n.money+n.max*0.001*dt);
+    n.cur=Math.max(n.base,n.cur-0.02*dt);
+    n.ev=Math.max(0,n.ev-0.06*dt);
+  });
+  stepScripts(dt);
+  stepTrace(dt);
+  drawMap(dt);
+  stepHeist(dt);
+  renderHUD();
+}
+
+/* ---------------- save/load ---------------- */
+function save(){if(S)localStorage.setItem('omninet-save',JSON.stringify(S));}
+function loadSave(){
+  try{
+    const d=JSON.parse(localStorage.getItem('omninet-save'));
+    if(!d)return;S=d;P=PATHS[S.path];
+    $('boot').classList.add('hidden');$('game').classList.remove('hidden');
+    buildDeck();buildTabs();renderHUD();renderTab();
+    log('Session restored from autosave.','info');
+  }catch(e){console.error(e);}
+}
+
+/* ---------------- input ---------------- */
+window.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){armCancel();if(heist&&heist.phase==='play'&&heist.type!=='clean'){heist.phase='fail';heist.failT=0;}}
+  if(e.key===' '&&heist){e.preventDefault();hcInput();}
+});
+$('map').addEventListener('pointerdown',e=>{
+  if(heist)return;
+  const n=nodeAt(e.clientX,e.clientY);
+  if(n)tryAction(n);
+  else armCancel();
+});
+$('hcc').addEventListener('pointerdown',e=>hcPointer(e,true));
+window.addEventListener('pointerup',e=>{if(heist&&heist.type==='clean')heist.holding=false;});
+$('sndbtn').onclick=()=>{soundOn=!soundOn;$('sndbtn').textContent=soundOn?'🔊':'🔇';};
+$('rstbtn').onclick=()=>showModal(`<h2>WIPE SAVE?</h2><p>This erases your handle, money, rack, scripts and missions. There is no undo — even in the prototype, consequences are real.</p><div class="btns"><button onclick="closeModal()">CANCEL</button><button onclick="localStorage.removeItem('omninet-save');location.reload()">BURN IT ALL</button></div>`);
+$('howbtn').onclick=()=>showModal(`<h2>HOW TO PLAY</h2>
+  <p><b>1.</b> Arm a card → click a node. SCAN reveals, BRUTE/PHISH root, SQLI/EXFIL steal, CLEAN wipes evidence.</p>
+  <p><b>2.</b> Heist Cam minigames: time the tumblers, hook the wobbling envelope, click OR 1=1, hold to burn logs.</p>
+  <p><b>3.</b> Evidence (red squares) feeds TRACE. 100% = caught. Consequences: White = rep · Grey = settlement · Black = seizure + strikes (3 = identity burn).</p>
+  <p><b>4.</b> Market: accept missions, follow the chain on the named target. Rack: buy RAM/CPU/cooling/proxies. Scripts: record a rooted target as an ambient farm.</p>
+  <div class="btns"><button onclick="closeModal()">GOT IT</button></div>`);
+
+window.addEventListener('resize',resize);
+function resize(){
+  const c=$('map');c.width=c.clientWidth;c.height=c.clientHeight;
+}
+
+/* ---------------- go ---------------- */
+buildBoot();
+resize();
+requestAnimationFrame(loop);
+setInterval(save,10000);
+</script>
+</body>
+</html>
